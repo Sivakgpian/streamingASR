@@ -1,0 +1,14 @@
+# Build trees (all presets build into build/<preset>)
+build/
+out/
+
+# Local tooling
+CMakeUserPresets.json
+.cache/
+compile_commands.json
+.vscode/
+.idea/
+
+# Profiling / benchmark output
+perf.data*
+*.json.bench

@@ -1,0 +1,2 @@
+# Files are edited from both Windows and WSL; keep LF in the repo and on disk.
+* text=auto eol=lf
