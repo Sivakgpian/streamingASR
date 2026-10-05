@@ -22,6 +22,7 @@ struct SessionEvent {
     SessionEventKind kind;
     std::string text;   // the result text; empty for kError
     std::string error;  // populated only for kError (backend exception message)
+    AsrTimings timings;  // forwarded from the AsrResult; zero for kError
 };
 
 // Called synchronously, from inside push()/end_of_stream()/reset(), for
@@ -83,7 +84,7 @@ private:
     void maybe_emit_partial();
     void finalize_utterance();
     void reset_to_idle() noexcept;
-    void emit(SessionEventKind kind, std::string text);
+    void emit(SessionEventKind kind, std::string text, AsrTimings timings = {});
     void emit_error(const std::string& message);
 
     Config config_;

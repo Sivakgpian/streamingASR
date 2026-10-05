@@ -122,7 +122,7 @@ void Session::maybe_emit_partial() {
 
     try {
         const AsrResult result = stream_->decode(buffer_.view());
-        emit(SessionEventKind::kPartial, result.text);
+        emit(SessionEventKind::kPartial, result.text, result.timings);
     } catch (const std::exception& e) {
         emit_error(e.what());
     }
@@ -131,7 +131,7 @@ void Session::maybe_emit_partial() {
 void Session::finalize_utterance() {
     try {
         const AsrResult result = stream_->finalize(buffer_.view());
-        emit(SessionEventKind::kFinal, result.text);
+        emit(SessionEventKind::kFinal, result.text, result.timings);
     } catch (const std::exception& e) {
         emit_error(e.what());
         return;  // reset_to_idle() already run inside emit_error()
@@ -150,13 +150,14 @@ void Session::reset_to_idle() noexcept {
     utterance_samples_ = 0;
 }
 
-void Session::emit(SessionEventKind kind, std::string text) {
+void Session::emit(SessionEventKind kind, std::string text, AsrTimings timings) {
     if (!on_event_) {
         return;
     }
     SessionEvent event;
     event.kind = kind;
     event.text = std::move(text);
+    event.timings = timings;
     on_event_(event);
 }
 

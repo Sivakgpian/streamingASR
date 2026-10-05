@@ -37,3 +37,20 @@ if(SASR_BUILD_BENCHMARKS)
         SYSTEM)
     FetchContent_MakeAvailable(benchmark)
 endif()
+
+# Off by default: a from-scratch build is sizeable (ggml + whisper.cpp),
+# and the sanitizer presets instrument it too (sanitizers are applied
+# globally -- see Sanitizers.cmake -- which is correct but makes an
+# ASan/TSan build of ggml's numeric kernels markedly slower). Turn on
+# with -DSASR_WITH_WHISPER=ON.
+option(SASR_WITH_WHISPER "Build the whisper.cpp ASR backend (src/asr/whisper_cpp_backend.*)" OFF)
+if(SASR_WITH_WHISPER)
+    set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(whisper_cpp
+        URL https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.4.tar.gz
+        URL_HASH SHA256=57e280cee375ab02425b806ad5146b99f6eb9357e3c2b31357c8a6af2e2e44ae
+        SYSTEM)
+    FetchContent_MakeAvailable(whisper_cpp)
+endif()

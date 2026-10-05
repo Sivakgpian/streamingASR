@@ -11,8 +11,16 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
-    { "name": "gcc",   "hidden": true, "cacheVariables": { "CMAKE_CXX_COMPILER": "g++" } },
-    { "name": "clang", "hidden": true, "cacheVariables": { "CMAKE_CXX_COMPILER": "clang++" } },
+    {
+      "name": "gcc",
+      "hidden": true,
+      "cacheVariables": { "CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++" }
+    },
+    {
+      "name": "clang",
+      "hidden": true,
+      "cacheVariables": { "CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++" }
+    },
     { "name": "debug",   "hidden": true, "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
     { "name": "release", "hidden": true, "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } },
     {

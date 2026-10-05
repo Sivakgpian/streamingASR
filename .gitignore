@@ -2,6 +2,10 @@
 build/
 out/
 
+# Downloaded ASR models (scripts/download_model.sh); large, pinned by
+# sha256 in the script, never committed.
+models/
+
 # Local tooling
 CMakeUserPresets.json
 .cache/
