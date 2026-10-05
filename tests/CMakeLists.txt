@@ -16,6 +16,7 @@ add_subdirectory(support)
 add_subdirectory(common)
 add_subdirectory(audio)
 add_subdirectory(asr)
+add_subdirectory(vad)
 add_subdirectory(streaming)
 
 if(NOT SASR_SANITIZER STREQUAL "")
