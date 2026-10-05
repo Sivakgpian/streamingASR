@@ -2,3 +2,4 @@
 # and must declare dependencies explicitly via target_link_libraries.
 add_subdirectory(common)
 add_subdirectory(audio)
+add_subdirectory(asr)
