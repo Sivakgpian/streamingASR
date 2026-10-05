@@ -55,8 +55,9 @@ public:
     virtual AsrResult finalize(std::span<const float> pcm) = 0;
 
     // Clears all decode state. The stream must never re-see audio from a
-    // prior utterance after this call. Safe to call on a stream that was
-    // never used (e.g. a session that closes without ever hearing speech).
+    // prior utterance after this call. Idempotent, and safe to call on a
+    // stream that was never used (e.g. a session that closes without ever
+    // hearing speech).
     virtual void reset() = 0;
 };
 

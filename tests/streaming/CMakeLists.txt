@@ -4,6 +4,11 @@ sasr_add_test(sasr_streaming_tests
         preroll_ring_test.cpp
         session_test.cpp
         engine_test.cpp
+        spsc_ring_test.cpp
+        bounded_queue_test.cpp
+        job_runner_test.cpp
+        frame_assembler_test.cpp
+        threaded_engine_test.cpp
     LIBS sasr::streaming sasr::asr)
 
 # Needs sole ownership of global operator new/delete; incompatible with

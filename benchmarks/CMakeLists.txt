@@ -14,6 +14,10 @@ sasr_add_benchmark(sasr_streaming_bench
     SOURCES streaming/streaming_bench.cpp
     LIBS sasr::streaming sasr::asr sasr::profiling)
 
+sasr_add_benchmark(sasr_threaded_bench
+    SOURCES streaming/threaded_bench.cpp
+    LIBS sasr::streaming sasr::asr sasr::profiling)
+
 if(SASR_WITH_WHISPER)
     sasr_add_benchmark(sasr_whisper_bench
         SOURCES streaming/whisper_bench.cpp

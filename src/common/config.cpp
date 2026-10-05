@@ -36,6 +36,8 @@ void Config::validate() const {
 
     require(job_queue_capacity > 0, "Config::job_queue_capacity must be > 0");
     require(result_queue_capacity > 0, "Config::result_queue_capacity must be > 0");
+    require(ring_capacity_frames > 0, "Config::ring_capacity_frames must be > 0");
+    require(engine_idle_poll_ms > 0, "Config::engine_idle_poll_ms must be > 0");
 }
 
 }  // namespace sasr

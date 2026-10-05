@@ -2,6 +2,8 @@
 
 #include "asr/asr_backend.hpp"
 #include "common/config.hpp"
+#include "streaming/frame_assembler.hpp"
+#include "streaming/job_runner.hpp"
 #include "streaming/session.hpp"
 
 #include <cstdint>
@@ -9,6 +11,7 @@
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
+#include <utility>
 
 namespace sasr {
 
@@ -19,9 +22,12 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-// Owns a set of concurrent Sessions sharing one AsrBackend. Single-
-// threaded and synchronous (see Session); a threaded version with its
-// own capture/worker threads is added later without changing this API.
+// Owns a set of Sessions sharing one AsrBackend. Single-threaded and
+// synchronous: every ASR call runs inline (InlineJobRunner), so events
+// are emitted before push()/end_of_stream() return. Deterministic, which
+// is what tests and simple tools want. For worker threads and a
+// non-blocking push(), see ThreadedEngine; both produce the same events
+// for the same audio.
 class Engine {
 public:
     Engine(Config config, AsrBackend& backend) : config_(std::move(config)), backend_(&backend) {}
@@ -35,19 +41,29 @@ public:
 
     [[nodiscard]] bool has_session(SessionId id) const noexcept;
 
+    // Any chunk size: audio is re-cut into Config::frame_ms frames
+    // aligned to the stream, so results don't depend on chunking.
     // Throws EngineError if id is not open.
     void push(SessionId id, std::span<const float> pcm);
+
+    // Processes any leftover partial frame, then finalizes.
     void end_of_stream(SessionId id);
 
     [[nodiscard]] const Session::Stats& stats(SessionId id) const;
 
 private:
-    [[nodiscard]] Session& session_at(SessionId id);
-    [[nodiscard]] const Session& session_at(SessionId id) const;
+    struct Entry {
+        std::unique_ptr<Session> session;
+        FrameAssembler framer;
+    };
+
+    [[nodiscard]] Entry& entry_at(SessionId id);
+    [[nodiscard]] const Entry& entry_at(SessionId id) const;
 
     Config config_;
-    AsrBackend* backend_;  // non-owning; shared across every session
-    std::unordered_map<SessionId, std::unique_ptr<Session>> sessions_;
+    AsrBackend* backend_;    // non-owning; shared across every session
+    InlineJobRunner runner_;  // declared before sessions_: must outlive them
+    std::unordered_map<SessionId, Entry> sessions_;
 };
 
 }  // namespace sasr

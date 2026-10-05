@@ -1,6 +1,13 @@
 # streamingasr
 
-CPU-first streaming ASR engine in C++20. See `CLAUDE.md` for architecture and roadmap.
+CPU-first streaming ASR engine in C++20. See `CLAUDE.md` for status and decisions, and
+`docs/` for the architecture and phased plan.
+
+Pipeline: audio source → per-session lock-free ring → engine thread (frame re-cutting,
+energy VAD, endpointing state machine, ping-pong utterance buffers) → worker pool running
+the ASR backend (`MockBackend`, or `WhisperCppBackend` with `-DSASR_WITH_WHISPER=ON`) →
+PARTIAL / FINAL events. `Engine` is the synchronous, deterministic variant; `ThreadedEngine`
+the multi-threaded one. Both emit the same events for the same audio.
 
 ## Build (WSL2 / Linux)
 
@@ -35,6 +42,23 @@ ctest --preset clang-release
 Sanitizer presets also build *canary* tests (`ctest -L canary`): programs with
 deliberate bugs that pass only if the sanitizer reports them.
 
+Benchmarks (release preset): `sasr_streaming_bench` (pipeline overhead per scenario),
+`sasr_threaded_bench` (1/2/4/8 concurrent streams), and with whisper enabled
+`sasr_whisper_bench` (real model on `tests/data/en1.wav`).
+
+### Real transcription (whisper.cpp, opt-in)
+
+```sh
+./scripts/download_model.sh                      # ggml-tiny.en.bin -> models/ (sha256-pinned)
+rm -rf build/clang-release                       # -D needs a fresh cache
+cmake --preset clang-release -DSASR_WITH_WHISPER=ON
+cmake --build --preset clang-release
+./build/clang-release/examples/sasr_transcribe models/ggml-tiny.en.bin tests/data/en1.wav
+```
+
+Input must be 16 kHz mono 16-bit PCM WAV; `scripts/make_test_audio.py` generates
+synthetic fixtures.
+
 ## Options
 
 | Option                    | Default | Meaning                                         |
@@ -43,6 +67,10 @@ deliberate bugs that pass only if the sanitizer reports them.
 | `SASR_SANITIZER`          | empty   | `address,undefined` or `thread`                 |
 | `SASR_FRAME_POINTERS`     | `ON`    | `-fno-omit-frame-pointer` for `perf` stacks     |
 | `SASR_BUILD_TESTS` / `_BENCHMARKS` / `_EXAMPLES` | `ON` | Toggle subtrees             |
+| `SASR_WITH_WHISPER`       | `OFF`   | Build the whisper.cpp backend (fetches v1.9.4)  |
+
+Runtime tunables (VAD threshold, pause/interval/max-utterance timings, workers, queue and
+ring sizes, ...) live in one struct, `sasr::Config` (`src/common/config.hpp`).
 
 ## Adding a module
 

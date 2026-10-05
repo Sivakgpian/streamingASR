@@ -48,8 +48,18 @@ struct Config {
     std::uint32_t beam_size = 1;          // 1 = greedy
 
     // ---- Queues (bounded; see CLAUDE.md: no unbounded queues) ----
+    // ThreadedEngine: also the maximum number of open sessions (each
+    // has at most one job outstanding, so this many never fills it).
     std::uint32_t job_queue_capacity = 8;
     std::uint32_t result_queue_capacity = 64;
+    // ThreadedEngine: per-session audio ring between the producer and
+    // the engine thread, in frames (100 x 20 ms = 2 s of slack).
+    std::uint32_t ring_capacity_frames = 100;
+    // ThreadedEngine: how long the idle engine thread sleeps before
+    // re-checking the audio rings (completions and commands wake it
+    // immediately; audio arrival does not, to keep push() lock-free).
+    // Upper bound on extra audio pickup latency when idle.
+    std::uint32_t engine_idle_poll_ms = 2;
 
     // Samples per frame: 16000 Hz * 20 ms / 1000 = 320.
     [[nodiscard]] std::size_t frame_samples() const { return ms_to_samples(frame_ms); }
