@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <fstream>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -32,7 +33,16 @@ public:
     // missing, malformed, or not PCM mono 16-bit at config.sample_rate.
     WavReader(const std::string& path, const Config& config);
 
-    // Next frame (the last one may be shorter), or std::nullopt at end of file.
+    // Converts and writes up to out.size() samples into `out`, reusing
+    // internal scratch storage; never allocates. Returns the number of
+    // samples actually written, which is less than out.size() only at end
+    // of file. Throws WavError if the file ends before the header's
+    // declared sample count.
+    std::size_t read_into(std::span<float> out);
+
+    // Next frame (the last one may be shorter), or std::nullopt at end of
+    // file. Convenience wrapper around read_into(): allocates one vector
+    // per call. Prefer read_into() on a hot path.
     std::optional<AudioFrame> read_frame();
 
     [[nodiscard]] std::int64_t total_samples() const { return total_samples_; }

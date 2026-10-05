@@ -12,9 +12,11 @@ function(sasr_add_test name)
     gtest_discover_tests(${name} DISCOVERY_MODE PRE_TEST)
 endfunction()
 
+add_subdirectory(support)
 add_subdirectory(common)
 add_subdirectory(audio)
 add_subdirectory(asr)
+add_subdirectory(streaming)
 
 if(NOT SASR_SANITIZER STREQUAL "")
     add_subdirectory(sanitizer_canary)

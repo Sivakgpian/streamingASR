@@ -88,25 +88,42 @@ WavReader::WavReader(const std::string& path, const Config& config)
     scratch_.resize(config.frame_samples());
 }
 
+std::size_t WavReader::read_into(std::span<float> out) {
+    std::size_t written = 0;
+    // Loop because `out` may be larger than scratch_ (sized to one frame at
+    // construction): we never grow scratch_, so a big request is served in
+    // scratch_-sized chunks instead of a single oversized read.
+    while (written < out.size()) {
+        const std::int64_t remaining = total_samples_ - position_;
+        if (remaining <= 0) {
+            break;  // end of file
+        }
+        const std::size_t chunk = std::min({static_cast<std::size_t>(remaining), scratch_.size(),
+                                            out.size() - written});
+        const auto bytes = static_cast<std::streamsize>(chunk * sizeof(std::int16_t));
+
+        if (!file_.read(reinterpret_cast<char*>(scratch_.data()), bytes)) {
+            throw WavError("truncated WAV file: fewer samples than the header says");
+        }
+        for (std::size_t i = 0; i < chunk; ++i) {
+            out[written + i] = static_cast<float>(scratch_[i]) / 32768.0f;  // int16 -> [-1, 1)
+        }
+        written += chunk;
+        position_ += static_cast<std::int64_t>(chunk);
+    }
+    return written;
+}
+
 std::optional<AudioFrame> WavReader::read_frame() {
-    const std::int64_t remaining = total_samples_ - position_;
-    if (remaining <= 0) {
-        return std::nullopt;
-    }
-    const auto n = static_cast<std::size_t>(std::min<std::int64_t>(remaining, std::ssize(scratch_)));
-    const auto bytes = static_cast<std::streamsize>(n * sizeof(std::int16_t));
-
-    if (!file_.read(reinterpret_cast<char*>(scratch_.data()), bytes)) {
-        throw WavError("truncated WAV file: fewer samples than the header says");
-    }
-
     AudioFrame frame;
     frame.start_sample = position_;
-    frame.samples.resize(n);  // the only allocation per frame
-    for (std::size_t i = 0; i < n; ++i) {
-        frame.samples[i] = static_cast<float>(scratch_[i]) / 32768.0f;  // int16 -> [-1, 1)
+    frame.samples.resize(scratch_.size());  // the only allocation per call
+
+    const std::size_t n = read_into(frame.samples);
+    if (n == 0) {
+        return std::nullopt;
     }
-    position_ += static_cast<std::int64_t>(n);
+    frame.samples.resize(n);  // shrink to actual (last frame may be short); never reallocates
     return frame;
 }
 

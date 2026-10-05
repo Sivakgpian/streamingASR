@@ -2,10 +2,13 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <span>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -130,6 +133,80 @@ TEST(WavReader, ThrowsOnTruncatedData) {
     const TempFile file(bytes);
     WavReader reader(file.path, kConfig);
     EXPECT_THROW(reader.read_frame(), WavError);
+}
+
+// ---- read_into ---------------------------------------------------------
+
+TEST(WavReaderReadInto, MatchesReadFrameSampleBySample) {
+    std::vector<std::int16_t> samples(1000);
+    for (std::size_t i = 0; i < samples.size(); ++i) {
+        samples[i] = static_cast<std::int16_t>(i * 37 - 500);  // arbitrary, non-trivial pattern
+    }
+    const std::string bytes = make_wav(samples);
+
+    const TempFile file_a(bytes);
+    WavReader via_read_frame(file_a.path, kConfig);
+    std::vector<float> expected;
+    while (const auto frame = via_read_frame.read_frame()) {
+        expected.insert(expected.end(), frame->samples.begin(), frame->samples.end());
+    }
+
+    const TempFile file_b(bytes);
+    WavReader via_read_into(file_b.path, kConfig);
+    std::vector<float> actual;
+    std::array<float, 320> chunk{};
+    for (;;) {
+        const std::size_t n = via_read_into.read_into(chunk);
+        actual.insert(actual.end(), chunk.begin(), chunk.begin() + static_cast<std::ptrdiff_t>(n));
+        if (n < chunk.size()) {
+            break;  // short read: end of file
+        }
+    }
+
+    EXPECT_EQ(actual, expected);
+}
+
+TEST(WavReaderReadInto, SingleCallLargerThanOneFrameReadsEverything) {
+    const TempFile file(make_wav(std::vector<std::int16_t>(1000)));
+    WavReader reader(file.path, kConfig);  // scratch_ is sized to 320 (frame_ms=20)
+
+    std::vector<float> out(1000);
+    EXPECT_EQ(reader.read_into(out), 1000U);  // served via 4 internal chunks of <=320
+    EXPECT_EQ(reader.read_into(out), 0U);     // already at end of file
+}
+
+TEST(WavReaderReadInto, RequestSmallerThanAvailableReadsOnlyThatManyAndLeavesRestForNextCall) {
+    std::vector<std::int16_t> samples(1000);
+    for (std::size_t i = 0; i < samples.size(); ++i) {
+        samples[i] = static_cast<std::int16_t>(i);
+    }
+    const TempFile file(make_wav(samples));
+    WavReader reader(file.path, kConfig);
+
+    std::vector<float> first(10);
+    EXPECT_EQ(reader.read_into(first), 10U);
+    EXPECT_EQ(first.front(), 0.0f);
+    EXPECT_EQ(first.back(), 9.0f / 32768.0f);
+
+    std::vector<float> next(5);
+    EXPECT_EQ(reader.read_into(next), 5U);
+    EXPECT_EQ(next.front(), 10.0f / 32768.0f);  // continues exactly where the first call stopped
+}
+
+TEST(WavReaderReadInto, StopsExactlyAtEndOfFile) {
+    const TempFile file(make_wav(std::vector<std::int16_t>(5)));
+    WavReader reader(file.path, kConfig);
+
+    std::vector<float> out(100);  // request far more than exists
+    EXPECT_EQ(reader.read_into(out), 5U);
+    EXPECT_EQ(reader.read_into(out), 0U);
+}
+
+TEST(WavReaderReadInto, EmptyRequestIsANoOp) {
+    const TempFile file(make_wav(std::vector<std::int16_t>(10)));
+    WavReader reader(file.path, kConfig);
+    EXPECT_EQ(reader.read_into({}), 0U);
+    EXPECT_EQ(reader.read_into(std::span<float>{}.first(0)), 0U);
 }
 
 }  // namespace
