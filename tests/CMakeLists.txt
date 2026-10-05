@@ -18,6 +18,7 @@ add_subdirectory(audio)
 add_subdirectory(asr)
 add_subdirectory(vad)
 add_subdirectory(streaming)
+add_subdirectory(profiling)
 
 if(NOT SASR_SANITIZER STREQUAL "")
     add_subdirectory(sanitizer_canary)
