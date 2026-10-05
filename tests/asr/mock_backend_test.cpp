@@ -14,55 +14,47 @@ TEST(MockBackend, IsNotIncremental) {
     EXPECT_FALSE(backend.is_incremental());
 }
 
-TEST(MockBackend, DecodeTextDependsOnlyOnSamplesAccepted) {
+TEST(MockBackend, DecodeTextDependsOnlyOnPcmSize) {
     MockBackend backend;
     auto stream = backend.create_stream();
 
-    const std::array<float, 100> chunk{};
-    stream->accept(chunk);
-    const AsrResult first = stream->decode();
+    const std::array<float, 100> short_audio{};
+    const AsrResult first = stream->decode(short_audio);
 
-    stream->accept(chunk);
-    const AsrResult second = stream->decode();
+    const std::array<float, 200> longer_audio{};
+    const AsrResult second = stream->decode(longer_audio);
 
-    EXPECT_NE(first.text, second.text);  // sample count changed
+    EXPECT_NE(first.text, second.text);
     EXPECT_FALSE(first.is_final);
     EXPECT_FALSE(second.is_final);
 }
 
-TEST(MockBackend, TwoStreamsFedIdenticalAudioProduceIdenticalResults) {
+TEST(MockBackend, TwoStreamsGivenIdenticalAudioProduceIdenticalResults) {
     MockBackend backend;
     auto stream_a = backend.create_stream();
     auto stream_b = backend.create_stream();
 
     const std::vector<float> audio(437, 0.0f);
-    stream_a->accept(audio);
-    stream_b->accept(audio);
 
-    EXPECT_EQ(stream_a->decode().text, stream_b->decode().text);
-    EXPECT_EQ(stream_a->finalize().text, stream_b->finalize().text);
+    EXPECT_EQ(stream_a->decode(audio).text, stream_b->decode(audio).text);
+    EXPECT_EQ(stream_a->finalize(audio).text, stream_b->finalize(audio).text);
 }
 
 TEST(MockBackend, FinalizeMarksResultFinal) {
     MockBackend backend;
     auto stream = backend.create_stream();
-    stream->accept(std::array<float, 10>{});
 
-    const AsrResult result = stream->finalize();
+    const AsrResult result = stream->finalize(std::array<float, 10>{});
     EXPECT_TRUE(result.is_final);
 }
 
-TEST(MockBackend, ResetClearsAcceptedSamples) {
+TEST(MockBackend, ResetIsSafeToCallAnytime) {
     MockBackend backend;
     auto stream = backend.create_stream();
-    stream->accept(std::array<float, 100>{});
+    stream->decode(std::array<float, 100>{});
 
-    stream->reset();
-    const AsrResult after_reset = stream->decode();
-
-    auto fresh_stream = backend.create_stream();
-    const AsrResult fresh = fresh_stream->decode();
-    EXPECT_EQ(after_reset.text, fresh.text);  // both saw 0 samples
+    EXPECT_NO_THROW(stream->reset());
+    EXPECT_NO_THROW(stream->reset());  // idempotent
 }
 
 TEST(MockBackend, DecodeDelayIsHonoredAndReportedInTimings) {
@@ -71,7 +63,7 @@ TEST(MockBackend, DecodeDelayIsHonoredAndReportedInTimings) {
     auto stream = backend.create_stream();
 
     const auto start = std::chrono::steady_clock::now();
-    const AsrResult result = stream->decode();
+    const AsrResult result = stream->decode(std::array<float, 10>{});
     const auto elapsed = std::chrono::steady_clock::now() - start;
 
     EXPECT_GE(elapsed, delay);

@@ -22,8 +22,20 @@ struct AsrResult {
 };
 
 // One ASR session. Holds per-utterance decode state (e.g. a model's KV
-// cache). Owned by exactly one sasr::Session (added later); never shared
-// between sessions and never called from two threads at once.
+// cache). Owned by exactly one sasr::Session; never shared between
+// sessions and never called from two threads at once.
+//
+// decode()/finalize() take the WHOLE utterance accepted so far as `pcm`:
+// a zero-copy view into the caller's own UtteranceBuffer (see
+// src/streaming/utterance_buffer.hpp), valid only for the duration of the
+// call. There is no separate accept() step and the stream keeps no copy
+// of the audio itself: the caller is already the audio's one owner. A
+// backend that must recompute from scratch (e.g. Whisper, over its fixed
+// window) just runs against `pcm` directly; a backend with genuine
+// incremental state (e.g. a streaming transducer's cached activations)
+// compares pcm.size() against how much of it it has already consumed to
+// process only the new suffix. Either way, Session never has to keep a
+// second copy of the audio alongside the backend's own.
 class AsrStream {
 public:
     virtual ~AsrStream() = default;
@@ -34,24 +46,17 @@ public:
     AsrStream(AsrStream&&) = delete;
     AsrStream& operator=(AsrStream&&) = delete;
 
-    // Appends audio for the current utterance. `pcm` is a view into the
-    // caller's utterance buffer and is only required to stay valid for the
-    // duration of this call (implementations must copy anything they need
-    // to keep, not retain the span).
-    virtual void accept(std::span<const float> pcm) = 0;
+    // Decodes the whole utterance accepted so far into an INTERIM result.
+    // May be called repeatedly as pcm grows, without resetting state.
+    virtual AsrResult decode(std::span<const float> pcm) = 0;
 
-    // Decodes everything accepted so far into an INTERIM result. May be
-    // called repeatedly without resetting state; audio already accepted
-    // is not re-supplied by the caller (see AsrBackend::is_incremental for
-    // whether the backend itself recomputes it internally).
-    virtual AsrResult decode() = 0;
-
-    // Flushes and returns the FINAL result for the current utterance.
+    // Same, but flushes and marks the result FINAL for this utterance.
     // After this call, reset() must be called before the next utterance.
-    virtual AsrResult finalize() = 0;
+    virtual AsrResult finalize(std::span<const float> pcm) = 0;
 
     // Clears all decode state. The stream must never re-see audio from a
-    // prior utterance after this call.
+    // prior utterance after this call. Safe to call on a stream that was
+    // never used (e.g. a session that closes without ever hearing speech).
     virtual void reset() = 0;
 };
 

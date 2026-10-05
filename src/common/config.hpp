@@ -56,6 +56,8 @@ struct Config {
     [[nodiscard]] std::size_t preroll_samples() const { return ms_to_samples(preroll_ms); }
     [[nodiscard]] std::size_t max_utterance_samples() const { return ms_to_samples(max_utterance_ms); }
     [[nodiscard]] std::size_t min_speech_samples() const { return ms_to_samples(min_speech_ms); }
+    [[nodiscard]] std::size_t interval_samples() const { return ms_to_samples(interval_ms); }
+    [[nodiscard]] std::size_t pause_threshold_samples() const { return ms_to_samples(pause_threshold_ms); }
 
     // Throws ConfigError naming the first invalid field found.
     void validate() const;
