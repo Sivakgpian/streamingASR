@@ -13,6 +13,7 @@ function(sasr_add_test name)
 endfunction()
 
 add_subdirectory(common)
+add_subdirectory(audio)
 
 if(NOT SASR_SANITIZER STREQUAL "")
     add_subdirectory(sanitizer_canary)

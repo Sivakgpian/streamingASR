@@ -95,6 +95,8 @@ Decisions:
 - Build on WSL2 (Ubuntu) with both GCC and Clang, using Ninja and CMake presets (`cmake --workflow --preset <name>`; 8 presets: {gcc,clang}×{debug,release,asan,tsan}).
 - GoogleTest + Google Benchmark via `FetchContent`, pinned by tarball SHA256.
 - One static library per module (`sasr_<module>`, alias `sasr::<module>`), namespace `sasr`, includes as `"<module>/<header>.hpp"`.
+- User prefers simple code: few files, plain structs, no abstraction until a second implementation exists. All tunables live in one `sasr::Config` struct (`src/common/config.hpp`, like a Python `config.py`).
+- M1 audio: `src/audio/wav_reader.{hpp,cpp}` holds `AudioFrame` (plain struct: `samples` + `start_sample`) and `WavReader` (streams PCM mono 16-bit, one heap allocation per frame). The `AudioSource` interface is deferred until the ALSA mic (M6). Test audio lives in `tests/data/` (`en1.wav`: 255680 samples, 799 frames of 20 ms).
 - Warnings (`sasr_set_warnings`) are per target with `-Werror` on; sanitizers and frame pointers are global (they must cover deps). Sanitizer presets run canary tests that prove the sanitizer is active.
 - Internal audio format is mono `float32` at 16 kHz. Sources convert at their boundary.
 
